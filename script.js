@@ -1,162 +1,72 @@
-// Cursor personalizado
-const cursor = document.querySelector(".cursor");
-const magneticElements = document.querySelectorAll(".magnetic");
-
-if (window.matchMedia("(hover: hover)").matches) {
-  window.addEventListener("mousemove", (event) => {
-    cursor.style.transform = `translate(${event.clientX}px, ${event.clientY}px) translate(-50%, -50%)`;
-  });
-
-  magneticElements.forEach((element) => {
-    element.addEventListener("mouseenter", () => cursor.classList.add("is-active"));
-    element.addEventListener("mouseleave", () => cursor.classList.remove("is-active"));
-
-    element.addEventListener("mousemove", (event) => {
-      const rect = element.getBoundingClientRect();
-      const x = (event.clientX - rect.left - rect.width / 2) * .18;
-      const y = (event.clientY - rect.top - rect.height / 2) * .18;
-      element.style.transform = `translate(${x}px, ${y}px)`;
-    });
-
-    element.addEventListener("mouseleave", () => {
-      element.style.transform = "translate(0, 0)";
-    });
-  });
+"use strict";
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const header = document.querySelector(".header");
+const progress = document.querySelector(".progress");
+let ticking = false;
+function updateScroll(){
+ const y = window.scrollY;
+ header.classList.toggle("scrolled", y > 60);
+ const total = document.documentElement.scrollHeight - innerHeight;
+ progress.style.width = `${total > 0 ? y / total * 100 : 0}%`;
+ ticking = false;
 }
-
-// Header que desaparece al bajar y reaparece al subir
-const header = document.querySelector(".site-header");
-let lastScroll = 0;
-
-window.addEventListener("scroll", () => {
-  const currentScroll = window.scrollY;
-  header.classList.toggle("is-hidden", currentScroll > lastScroll && currentScroll > 180);
-  lastScroll = currentScroll;
-}, { passive: true });
-
-// Reveals
-const revealObserver = new IntersectionObserver((entries) => {
-  entries.forEach((entry) => {
-    if (entry.isIntersecting) {
-      entry.target.classList.add("is-visible");
-      revealObserver.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.16 });
-
-document.querySelectorAll(".reveal").forEach((element) => revealObserver.observe(element));
-
-// Parallax suave
-const parallaxItems = document.querySelectorAll("[data-parallax]");
-
-window.addEventListener("scroll", () => {
-  const scrollY = window.scrollY;
-
-  parallaxItems.forEach((item) => {
-    const speed = parseFloat(item.dataset.parallax);
-    const rect = item.getBoundingClientRect();
-    if (rect.bottom < 0 || rect.top > window.innerHeight) return;
-    item.style.transform = `translateY(${scrollY * speed * -0.2}px)`;
-  });
-}, { passive: true });
-
-// Menú overlay
-const menuToggle = document.querySelector(".menu-toggle");
-const menuOverlay = document.querySelector(".menu-overlay");
-const menuLinks = document.querySelectorAll(".menu-nav a");
-
-function toggleMenu(open) {
-  menuOverlay.classList.toggle("is-open", open);
-  menuOverlay.setAttribute("aria-hidden", String(!open));
-  menuToggle.setAttribute("aria-expanded", String(open));
-  document.body.style.overflow = open ? "hidden" : "";
+addEventListener("scroll",()=>{if(!ticking){ticking=true;requestAnimationFrame(updateScroll);}}, {passive:true});
+updateScroll();
+if("IntersectionObserver" in window && !reduced){
+ document.documentElement.classList.add("js");
+ const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add("visible");observer.unobserve(entry.target);}}),{threshold:.08});
+ document.querySelectorAll(".reveal").forEach(el=>observer.observe(el));
 }
-
-menuToggle.addEventListener("click", () => {
-  toggleMenu(!menuOverlay.classList.contains("is-open"));
-});
-
-menuLinks.forEach((link, index) => {
-  link.style.transitionDelay = `${index * 70}ms`;
-
-  link.addEventListener("click", () => toggleMenu(false));
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") toggleMenu(false);
-});
-
-// Pestañas de agenda
-const tabs = document.querySelectorAll(".tab");
-const panels = document.querySelectorAll(".agenda-panel");
-
-tabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    const selectedDay = tab.dataset.day;
-
-    tabs.forEach((item) => {
-      const isActive = item === tab;
-      item.classList.toggle("is-active", isActive);
-      item.setAttribute("aria-selected", String(isActive));
-    });
-
-    panels.forEach((panel) => {
-      const isActive = panel.id === `panel-${selectedDay}`;
-      panel.classList.toggle("is-active", isActive);
-      panel.hidden = !isActive;
-    });
-  });
-});
-
-// Cuenta atrás
-const weddingDate = new Date("2027-09-12T16:30:00").getTime();
-const countdown = document.getElementById("countdown");
-
-function updateCountdown() {
-  const difference = weddingDate - Date.now();
-
-  if (difference <= 0) {
-    countdown.innerHTML = "<div><strong>¡Hoy!</strong><span>es el gran día</span></div>";
-    return;
-  }
-
-  const days = Math.floor(difference / 86400000);
-  const hours = Math.floor((difference % 86400000) / 3600000);
-  const minutes = Math.floor((difference % 3600000) / 60000);
-  const seconds = Math.floor((difference % 60000) / 1000);
-
-  countdown.querySelector("[data-days]").textContent = String(days).padStart(2, "0");
-  countdown.querySelector("[data-hours]").textContent = String(hours).padStart(2, "0");
-  countdown.querySelector("[data-minutes]").textContent = String(minutes).padStart(2, "0");
-  countdown.querySelector("[data-seconds]").textContent = String(seconds).padStart(2, "0");
+const toggle=document.querySelector(".menu-toggle");
+const dialog=document.querySelector(".navigation");
+let savedScroll=0;
+function closeMenu(){if(dialog.open)dialog.close();}
+function restoreMenu(){
+ toggle.setAttribute("aria-expanded","false");
+ header.classList.remove("menu-open");
+ document.body.style.overflow="";
+ toggle.focus({preventScroll:true});
 }
-
-updateCountdown();
-setInterval(updateCountdown, 1000);
-
-// RSVP
-const form = document.getElementById("rsvp-form");
-const formStatus = document.getElementById("form-status");
-
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-
-  const name = form.name.value.trim();
-  const email = form.email.value.trim();
-  const guests = form.guests.value;
-  const attendance = form.attendance.value;
-
-  if (!name || !email || !guests || !attendance) {
-    formStatus.textContent = "Por favor, completa todos los campos obligatorios.";
-    formStatus.style.color = "#a4573d";
-    return;
-  }
-
-  const firstName = name.split(" ")[0];
-  formStatus.textContent = attendance === "yes"
-    ? `¡Gracias, ${firstName}! Hemos recibido tu confirmación para ${guests} ${guests === "1" ? "persona" : "personas"}.`
-    : `Gracias por avisarnos, ${firstName}. Te echaremos de menos.`;
-
-  formStatus.style.color = "var(--olive)";
-  form.reset();
+toggle.addEventListener("click",()=>{
+ if(dialog.open){closeMenu();return;}
+ savedScroll=scrollY;
+ dialog.showModal();
+ toggle.setAttribute("aria-expanded","true");
+ header.classList.add("menu-open");
+ document.body.style.overflow="hidden";
+});
+dialog.addEventListener("close",restoreMenu);
+dialog.addEventListener("keydown",e=>{
+ if(e.key==="Escape"){e.preventDefault();closeMenu();}
+});
+dialog.querySelectorAll("a").forEach(a=>a.addEventListener("click",e=>{
+ e.preventDefault();const target=document.querySelector(a.getAttribute("href"));
+ closeMenu();target.scrollIntoView({behavior:reduced?"instant":"smooth"});
+ history.replaceState(null,"",a.getAttribute("href"));
+}));
+// The modal top layer needs its own accessible close control.
+const close=document.createElement("button");
+close.className="modal-close";close.type="button";
+close.setAttribute("aria-label","Cerrar menú");close.innerHTML='<span>CERRAR</span><span aria-hidden="true">×</span>';
+dialog.prepend(close);close.addEventListener("click",closeMenu);
+const tabs=[...document.querySelectorAll('[role="tab"]')];
+function selectTab(tab,focus=false){
+ tabs.forEach(t=>{const active=t===tab;t.setAttribute("aria-selected",String(active));t.tabIndex=active?0:-1;document.getElementById(t.getAttribute("aria-controls")).hidden=!active;});
+ if(focus)tab.focus();
+}
+tabs.forEach((tab,i)=>{
+ tab.addEventListener("click",()=>selectTab(tab));
+ tab.addEventListener("keydown",e=>{
+ let next;if(e.key==="ArrowRight")next=(i+1)%tabs.length;if(e.key==="ArrowLeft")next=(i+tabs.length-1)%tabs.length;if(e.key==="Home")next=0;if(e.key==="End")next=tabs.length-1;
+ if(next!==undefined){e.preventDefault();selectTab(tabs[next],true);}
+ });
+});
+const wedding=new Date("2027-09-12T16:30:00+02:00").getTime();
+function countdown(){const d=Math.max(0,wedding-Date.now());document.querySelector('[data-days]').textContent=Math.floor(d/86400000);document.querySelector('[data-hours]').textContent=String(Math.floor(d/3600000)%24).padStart(2,"0");document.querySelector('[data-minutes]').textContent=String(Math.floor(d/60000)%60).padStart(2,"0");}
+countdown();setInterval(countdown,30000);
+const form=document.getElementById("rsvp-form");
+form.addEventListener("submit",e=>{
+ e.preventDefault();if(!form.reportValidity())return;
+ const data=new FormData(form);const first=String(data.get("name")).trim().split(/\s+/)[0];
+ document.getElementById("form-status").textContent=data.get("attendance")==="yes"?`¡Qué ilusión, ${first}! Así se vería tu confirmación para ${data.get("guests")} persona(s). Es una demostración: no se ha enviado ninguna respuesta.`:`Gracias, ${first}. Esta es una respuesta de demostración; no se ha enviado ningún dato.`;
 });
